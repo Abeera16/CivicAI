@@ -1,0 +1,44 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ---- Environment / secrets ----
+.env
+.env.local
+.env.*.local
+
+# ---- Logs ----
+*.log
+backend/logs/*.log
+
+# ---- Docker volumes ----
+postgres_data/
+chroma_data/
+
+# ---- Node / Next.js ----
+node_modules/
+dist/
+build/
+.next/
+.vercel/
+
+# ---- Android ----
+CivicAI/local.properties
+CivicAI/.gradle/
+CivicAI/app/build/
+CivicAI/build/
+*.apk
+*.aab
+
+# ---- Media uploads (ephemeral, not tracked) ----
+backend/media/reports/*
+!backend/media/reports/.gitkeep
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

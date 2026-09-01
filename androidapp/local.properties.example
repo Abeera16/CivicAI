@@ -1,0 +1,13 @@
+# Copy this file to local.properties (same folder) and fill in your values.
+# local.properties is read by app/build.gradle.kts and injected as BuildConfig fields
+# and manifest placeholders. It is NOT committed to version control.
+
+sdk.dir=/path/to/your/Android/sdk
+
+# Base URL of your CivicAI backend (see API_INTEGRATION.md).
+# Use 10.0.2.2 instead of localhost when running on the Android emulator.
+CIVICAI_BASE_URL=http://10.0.2.2:8000/api/
+
+# Optional: Google Maps SDK API key, only needed for the Nearby map screen.
+# Get one at https://console.cloud.google.com/google/maps-apis
+MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY

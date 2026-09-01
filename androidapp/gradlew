@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#
+# Standard Gradle wrapper launcher script.
+# If gradle/wrapper/gradle-wrapper.jar is missing, open this project in
+# Android Studio and let it sync (Studio bundles Gradle and will fetch the
+# wrapper jar automatically), or run `gradle wrapper` once with a local
+# Gradle install to regenerate it.
+#
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_HOME=$DIR
+
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ ! -f "$CLASSPATH" ]; then
+  echo "gradle-wrapper.jar not found. Open this project in Android Studio to let it sync," >&2
+  echo "or run 'gradle wrapper' locally to regenerate the wrapper jar." >&2
+  exit 1
+fi
+
+exec java -Dorg.gradle.appname="$(basename "$0")" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
