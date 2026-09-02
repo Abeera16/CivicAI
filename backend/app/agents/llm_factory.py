@@ -28,6 +28,7 @@ def get_chat_model(temperature: float = 0.0) -> BaseChatModel:
             model=settings.groq_chat_model,
             api_key=settings.groq_api_key,
             temperature=temperature,
+            model_kwargs={"reasoning_format": "hidden"},
         )
 
     if provider == "openai":
