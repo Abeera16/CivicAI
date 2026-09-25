@@ -71,7 +71,9 @@ async def civic_citation_node(state: AgentState) -> dict:
     civic_results = state.get("civic_results", {}) or {}
     context = _format_context(civic_results)
 
-    llm = get_chat_model(temperature=0.2)
+    # Capped under Groq's free-tier output-token-per-minute limit (currently
+    # 1000) so a single reply can't get rate-limited on its own.
+    llm = get_chat_model(temperature=0.2, max_tokens=800)
     system_prompt = CIVIC_SYSTEM_PROMPT.format(context=context)
     history = state.get("messages", [])[-6:]
     messages = [{"role": "system", "content": system_prompt}, *history,
