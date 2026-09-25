@@ -47,6 +47,43 @@ def get_chat_model(temperature: float = 0.0, max_tokens: int | None = None) -> B
     raise ValueError(f"Unknown LLM_PROVIDER '{provider}'. Use 'groq' or 'openai'.")
 
 
+def get_vision_model(temperature: float = 0.0, max_tokens: int | None = None) -> BaseChatModel:
+    """Like get_chat_model, but returns a model that can actually accept image input.
+
+    groq_chat_model / openai_chat_model (used by get_chat_model) are text-only
+    or not guaranteed to support vision — report-photo classification needs a
+    model that genuinely looks at the image, so this is deliberately separate.
+    """
+    provider = settings.llm_provider.lower().strip()
+
+    if provider == "groq":
+        from langchain_groq import ChatGroq
+
+        if not settings.groq_api_key:
+            logger.warning("GROQ_API_KEY is not set — vision calls will fail until it is configured.")
+        return ChatGroq(
+            model=settings.groq_vision_model,
+            api_key=settings.groq_api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        if not settings.openai_api_key:
+            logger.warning("OPENAI_API_KEY is not set — vision calls will fail until it is configured.")
+        # gpt-4o-mini supports vision input natively, no separate model needed.
+        return ChatOpenAI(
+            model=settings.openai_chat_model,
+            api_key=settings.openai_api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    raise ValueError(f"Unknown LLM_PROVIDER '{provider}'. Use 'groq' or 'openai'.")
+
+
 @lru_cache
 def _cached_default_model() -> BaseChatModel:
     """Cached zero-temperature model, reused by nodes that don't need custom temperature."""
