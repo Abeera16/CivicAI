@@ -73,6 +73,10 @@ async def health():
 
 
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+# Also served under /api/media: the Android client builds image URLs as
+# BuildConfig.CIVICAI_BASE_URL (which ends in /api) + the stored image_url
+# (which starts with /media/...), so requests actually land on /api/media/...
+app.mount("/api/media", StaticFiles(directory=str(MEDIA_DIR)), name="media_api")
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(civic.router, prefix="/api")
