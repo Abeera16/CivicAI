@@ -46,8 +46,8 @@ curl -X POST http://localhost:8000/api/osm/sync
 
 **Demo admin account** — set these in `.env` and the backend seeds it automatically on startup:
 ```
-SEED_ADMIN_EMAIL=admin@example.com
-SEED_ADMIN_PASSWORD=YourPassword123!
+SEED_ADMIN_EMAIL=admin@civicai.app
+SEED_ADMIN_PASSWORD=ChangeMe123!
 ```
 
 ---
