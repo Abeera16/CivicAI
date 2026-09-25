@@ -4,10 +4,12 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt_handler import get_current_staff_user, get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging_config import logger
 from app.models.civic_schemas import (
@@ -37,13 +39,40 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 
 
+def _r2_client():
+    """Lazily build a boto3 S3-compatible client pointed at Cloudflare R2."""
+    import boto3
+
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{settings.r2_account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.r2_access_key_id,
+        aws_secret_access_key=settings.r2_secret_access_key,
+    )
+
+
 async def _save_uploaded_image(image: UploadFile) -> str:
     if image.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {image.content_type}")
     ext = Path(image.filename or "upload.jpg").suffix or ".jpg"
     filename = f"{uuid.uuid4()}{ext}"
-    dest = MEDIA_DIR / filename
     contents = await image.read()
+
+    if settings.r2_bucket_name:
+        # Persistent storage — survives redeploys. Upload runs in a thread so
+        # the boto3 (blocking) call doesn't block the async event loop.
+        client = _r2_client()
+        await run_in_threadpool(
+            client.put_object,
+            Bucket=settings.r2_bucket_name,
+            Key=f"reports/{filename}",
+            Body=contents,
+            ContentType=image.content_type,
+        )
+        return f"{settings.r2_public_url.rstrip('/')}/reports/{filename}"
+
+    # Fallback: local disk (dev only — wiped on every Render redeploy)
+    dest = MEDIA_DIR / filename
     dest.write_bytes(contents)
     return f"/media/reports/{filename}"
 
