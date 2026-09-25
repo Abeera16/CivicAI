@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.logging_config import logger
 
 
-def get_chat_model(temperature: float = 0.0) -> BaseChatModel:
+def get_chat_model(temperature: float = 0.0, max_tokens: int | None = None) -> BaseChatModel:
     provider = settings.llm_provider.lower().strip()
 
     if provider == "groq":
@@ -28,6 +28,7 @@ def get_chat_model(temperature: float = 0.0) -> BaseChatModel:
             model=settings.groq_chat_model,
             api_key=settings.groq_api_key,
             temperature=temperature,
+            max_tokens=max_tokens,
             model_kwargs={"reasoning_format": "hidden"},
         )
 
@@ -40,6 +41,7 @@ def get_chat_model(temperature: float = 0.0) -> BaseChatModel:
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
             temperature=temperature,
+            max_tokens=max_tokens,
         )
 
     raise ValueError(f"Unknown LLM_PROVIDER '{provider}'. Use 'groq' or 'openai'.")
