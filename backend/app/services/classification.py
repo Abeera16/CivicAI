@@ -57,7 +57,10 @@ def _parse_llm_json(raw: str) -> dict | None:
 
 
 async def classify_report(description: str | None, image_url: str, hinted_category: str | None = None) -> dict:
-    llm = get_chat_model(temperature=0.0)
+    # Capped low: the JSON reply is only ~4 short fields. Groq's free tier
+    # enforces a per-minute output-token limit (currently 1000), so keeping
+    # this request small avoids "rate_limit_exceeded" (OTPM) errors.
+    llm = get_chat_model(temperature=0.0, max_tokens=300)
     system_prompt = CLASSIFICATION_SYSTEM_PROMPT.format(image_url=image_url or "none provided")
     user_content = description or "No description provided by the citizen."
     if hinted_category:
