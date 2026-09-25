@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { civicApi, mediaUrl } from '@/lib/civicai-api'
 import { useApiData } from '@/lib/hooks'
@@ -14,6 +14,7 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
   const [acting, setActing] = useState(false)
   const [beforeUrl, setBeforeUrl] = useState('')
   const [afterUrl, setAfterUrl] = useState('')
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
   const isStaff = user?.role === 'staff'
 
   async function setStatus(status: 'open' | 'in_progress') {
@@ -114,32 +115,52 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
             <div className="mt-6">
               <p className="text-sm font-semibold">Grouped reports ({incident.reports?.length ?? 0})</p>
               <div className="mt-3 flex flex-col gap-3">
-                {(incident.reports ?? []).map((r) => (
-                  <div key={r.id} className="rounded-2xl border border-border p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">{titleCase(r.department)}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{timeAgo(r.created_at)}</p>
+                {(incident.reports ?? []).map((r) => {
+                  const isExpanded = expandedReportId === r.id
+                  return (
+                    <div
+                      key={r.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setExpandedReportId(isExpanded ? null : r.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') setExpandedReportId(isExpanded ? null : r.id)
+                      }}
+                      className="cursor-pointer rounded-2xl border border-border p-4 transition hover:border-primary/40 hover:bg-muted/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">{titleCase(r.department)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{timeAgo(r.created_at)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Tag tone={severityTone(r.severity)}>{titleCase(r.severity)}</Tag>
+                          {isExpanded ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+                        </div>
                       </div>
-                      <Tag tone={severityTone(r.severity)}>{titleCase(r.severity)}</Tag>
+                      {r.description && <p className="mt-2 text-sm text-muted-foreground">{r.description}</p>}
+                      {r.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={mediaUrl(r.image_url)} alt="Report evidence" className="mt-3 max-h-48 w-full rounded-xl object-cover" />
+                      )}
+                      {!isExpanded && (
+                        <p className="mt-3 text-xs font-medium text-primary">Tap to see full AI reasoning</p>
+                      )}
+                      {isExpanded && (
+                        <div className="mt-3 rounded-xl bg-muted/50 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI classification</p>
+                            <p className="text-xs font-medium text-muted-foreground">{Math.round(r.confidence * 100)}% confidence</p>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Category: <span className="font-medium text-foreground">{titleCase(r.category)}</span>
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{r.ai_reasoning}</p>
+                        </div>
+                      )}
                     </div>
-                    {r.description && <p className="mt-2 text-sm text-muted-foreground">{r.description}</p>}
-                    {r.image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={mediaUrl(r.image_url)} alt="Report evidence" className="mt-3 max-h-48 w-full rounded-xl object-cover" />
-                    )}
-                    <div className="mt-3 rounded-xl bg-muted/50 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI classification</p>
-                        <p className="text-xs font-medium text-muted-foreground">{Math.round(r.confidence * 100)}% confidence</p>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Category: <span className="font-medium text-foreground">{titleCase(r.category)}</span>
-                      </p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{r.ai_reasoning}</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </>
