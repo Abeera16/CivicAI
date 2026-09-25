@@ -7,6 +7,8 @@ default so report creation never hard-fails on a flaky model call.
 import json
 import re
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 from app.agents.llm_factory import get_chat_model
 from app.core.logging_config import logger
 from app.models.civic_schemas import CATEGORIES, DEPARTMENTS, SEVERITIES
@@ -56,26 +58,46 @@ def _parse_llm_json(raw: str) -> dict | None:
         return None
 
 
+# Retry transient failures (timeouts, connection errors, 429 rate limits) up to
+# 3 times with exponential backoff before giving up and falling back. Groq's
+# free tier is rate-limited per minute, so a short backoff often succeeds on
+# the 2nd/3rd try instead of immediately punting to the generic "other/medium"
+# fallback.
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    retry=retry_if_exception_type(Exception),
+)
+async def _call_llm(llm, system_prompt: str, user_content: str):
+    return await llm.ainvoke(
+        [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
+    )
+
+
 async def classify_report(description: str | None, image_url: str, hinted_category: str | None = None) -> dict:
-    # Capped low: the JSON reply is only ~4 short fields. Groq's free tier
-    # enforces a per-minute output-token limit (currently 1000), so keeping
-    # this request small avoids "rate_limit_exceeded" (OTPM) errors.
-    llm = get_chat_model(temperature=0.0, max_tokens=300)
     system_prompt = CLASSIFICATION_SYSTEM_PROMPT.format(image_url=image_url or "none provided")
     user_content = description or "No description provided by the citizen."
     if hinted_category:
         user_content += f"\n\nCitizen-selected category hint (verify, don't blindly trust): {hinted_category}"
 
     try:
-        response = await llm.ainvoke(
-            [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
-        )
+        # Capped low: the JSON reply is only ~4 short fields. Groq's free tier
+        # enforces a per-minute output-token limit (currently 1000), so keeping
+        # this request small avoids "rate_limit_exceeded" (OTPM) errors.
+        llm = get_chat_model(temperature=0.0, max_tokens=300)
+        response = await _call_llm(llm, system_prompt, user_content)
         parsed = _parse_llm_json(response.content)
     except Exception as exc:  # noqa: BLE001
-        logger.error(f"Report classification LLM call failed: {exc}")
-        return _fallback("LLM call failed")
+        # Surface the real exception type/message (truncated) both in the logs
+        # AND in ai_reasoning, so the failure mode is visible directly in the
+        # Incident Detail screen without having to dig through Render logs.
+        detail = f"{type(exc).__name__}: {str(exc)[:180]}"
+        logger.error(f"Report classification LLM call failed after retries: {detail}")
+        return _fallback(detail)
 
     if not parsed:
+        logger.warning(f"Report classification returned unparseable JSON: {response.content[:200]!r}")
         return _fallback("unparseable LLM response")
 
     category = str(parsed.get("category", "other")).lower().strip()
