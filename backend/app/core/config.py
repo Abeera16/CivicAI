@@ -16,11 +16,15 @@ class Settings(BaseSettings):
 
     # Groq
     groq_api_key: str = ""
-    groq_chat_model: str = "llama-3.3-70b-versatile"
+    groq_chat_model: str = "qwen/qwen3.8-27b"
     # Vision-capable Groq model, used only for report photo classification.
-    # Groq's vision-model lineup changes fairly often — verify this is still
-    # current at https://console.groq.com/docs/models before relying on it.
-    groq_vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    # qwen/qwen3.8-27b is currently the multimodal (text+image) model on
+    # Groq's free tier (meta-llama/llama-4-scout-17b-16e-instruct, an earlier
+    # choice here, was fully shut down 07/17/26 — do not revert to it).
+    # It's marked "Preview" on Groq's own docs, meaning it can be discontinued
+    # on short notice — check https://console.groq.com/docs/deprecations
+    # periodically and update this if/when it's replaced.
+    groq_vision_model: str = "qwen/qwen3.8-27b"
 
     # OpenAI (optional — only used if llm_provider="openai")
     openai_api_key: str = ""
