@@ -151,6 +151,107 @@ async def confirm_report(
     return report
 
 
+async def _recompute_incident_status_from_reports(db: AsyncSession, incident: UrbanIncident) -> None:
+    """An incident's own status should reflect its member reports, not be a
+    single flag independent of them. Reports in one incident can be up to 80m
+    apart (see dedup.py) — real-world cleanup can (and often does) finish at
+    one spot before another, so "resolved" only makes sense once every
+    member report is actually resolved. Called after any single report's
+    status changes.
+    """
+    result = await db.execute(select(CivicReport).where(CivicReport.incident_id == incident.id))
+    sibling_reports = result.scalars().all()
+    if not sibling_reports:
+        return
+
+    resolved_count = sum(1 for r in sibling_reports if r.status == "resolved")
+
+    if resolved_count == len(sibling_reports):
+        if incident.status != "resolved":
+            if incident.impact_before is None:
+                incident.impact_before = incident.impact_score
+            impact_after, _explanation = await compute_post_resolution_score(
+                db, category=incident.category, report_count=incident.report_count,
+                lat=incident.lat, lng=incident.lng, incident_id=incident.id,
+            )
+            incident.impact_after = impact_after
+            incident.resolved_at = datetime.utcnow()
+        incident.status = "resolved"
+    elif resolved_count > 0:
+        # Some, but not all, reports fixed — real progress, but the incident
+        # as a whole (all locations grouped into it) isn't done yet.
+        incident.status = "in_progress"
+    else:
+        # Nothing resolved (e.g. the only resolved report was just reopened) —
+        # back to needing attention rather than staying stuck on "resolved".
+        incident.status = "open"
+
+    db.add(incident)
+
+
+@router.post("/reports/{report_id}/resolve", response_model=ReportOut)
+async def resolve_report(
+    report_id: str,
+    current_user: User = Depends(get_current_staff_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark ONE report's underlying issue as fixed — not the whole incident.
+
+    Reports grouped into the same incident can be at different points within
+    an 80m radius (see dedup.py); a crew fixing one spot doesn't mean every
+    grouped report's location is actually fixed. Use this for per-location
+    resolution instead of POST /incidents/{id}/resolve, which resolves every
+    report in the incident at once and should only be used when the whole
+    grouped area has genuinely been addressed in one visit.
+    """
+    result = await db.execute(select(CivicReport).where(CivicReport.id == report_id))
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.status = "resolved"
+    db.add(report)
+
+    if report.incident_id:
+        inc_result = await db.execute(select(UrbanIncident).where(UrbanIncident.id == report.incident_id))
+        incident = inc_result.scalar_one_or_none()
+        if incident:
+            await _recompute_incident_status_from_reports(db, incident)
+
+    await db.commit()
+    await db.refresh(report)
+    return report
+
+
+@router.post("/reports/{report_id}/reopen", response_model=ReportOut)
+async def reopen_report(
+    report_id: str,
+    current_user: User = Depends(get_current_staff_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Undo an accidental/incorrect per-report resolve — mirrors resolve_report."""
+    result = await db.execute(select(CivicReport).where(CivicReport.id == report_id))
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.status = "open"
+    db.add(report)
+
+    if report.incident_id:
+        inc_result = await db.execute(select(UrbanIncident).where(UrbanIncident.id == report.incident_id))
+        incident = inc_result.scalar_one_or_none()
+        if incident:
+            if incident.status == "resolved":
+                incident.resolved_at = None
+                incident.impact_after = None
+            await _recompute_incident_status_from_reports(db, incident)
+
+    await db.commit()
+    await db.refresh(report)
+    return report
+
+
 @router.get("/incidents", response_model=list[IncidentOut])
 async def list_incidents(
     status: str | None = None,
