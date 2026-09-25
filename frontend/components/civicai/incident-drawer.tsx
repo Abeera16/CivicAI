@@ -15,6 +15,7 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
   const [beforeUrl, setBeforeUrl] = useState('')
   const [afterUrl, setAfterUrl] = useState('')
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
+  const [resolvingReportId, setResolvingReportId] = useState<string | null>(null)
   const isStaff = user?.role === 'staff'
 
   async function setStatus(status: 'open' | 'in_progress') {
@@ -39,6 +40,21 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
       refetch()
     } finally {
       setActing(false)
+    }
+  }
+
+  async function toggleReportResolved(reportId: string, currentStatus: string) {
+    if (!token) return
+    setResolvingReportId(reportId)
+    try {
+      if (currentStatus === 'resolved') {
+        await civicApi.reopenReport(token, reportId)
+      } else {
+        await civicApi.resolveReport(token, reportId)
+      }
+      refetch()
+    } finally {
+      setResolvingReportId(null)
     }
   }
 
@@ -92,6 +108,10 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                     Reopen
                   </Action>
                 </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Reports in this incident can be up to 80m apart — if only some locations are actually fixed, resolve those
+                  individual reports below instead. Use "Mark all resolved" only once every location in this incident is done.
+                </p>
                 <div className="mt-4 grid gap-2">
                   <input
                     value={beforeUrl}
@@ -106,7 +126,7 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                     className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-4 focus:ring-primary/10"
                   />
                   <Action disabled={acting} onClick={resolve}>
-                    {acting ? <Loader2 className="size-4 animate-spin" /> : 'Mark resolved'}
+                    {acting ? <Loader2 className="size-4 animate-spin" /> : 'Mark all resolved'}
                   </Action>
                 </div>
               </div>
@@ -134,7 +154,9 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                           <p className="mt-1 text-xs text-muted-foreground">{timeAgo(r.created_at)}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Tag tone={severityTone(r.severity)}>{titleCase(r.severity)}</Tag>
+                          <Tag tone={r.status === 'resolved' ? 'green' : severityTone(r.severity)}>
+                            {r.status === 'resolved' ? 'Resolved' : titleCase(r.severity)}
+                          </Tag>
                           {isExpanded ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
                         </div>
                       </div>
@@ -156,6 +178,23 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                             Category: <span className="font-medium text-foreground">{titleCase(r.category)}</span>
                           </p>
                           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{r.ai_reasoning}</p>
+                        </div>
+                      )}
+                      {isStaff && (
+                        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                          <Action
+                            variant="outline"
+                            disabled={resolvingReportId === r.id}
+                            onClick={() => toggleReportResolved(r.id, r.status)}
+                          >
+                            {resolvingReportId === r.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : r.status === 'resolved' ? (
+                              'Reopen this report'
+                            ) : (
+                              'Mark this report resolved'
+                            )}
+                          </Action>
                         </div>
                       )}
                     </div>
