@@ -12,8 +12,6 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
   const { token, user } = useAuth()
   const { data: incident, error, loading, refetch } = useApiData(() => civicApi.incident(incidentId, token ?? undefined), [incidentId, token])
   const [acting, setActing] = useState(false)
-  const [beforeUrl, setBeforeUrl] = useState('')
-  const [afterUrl, setAfterUrl] = useState('')
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
   const [resolvingReportId, setResolvingReportId] = useState<string | null>(null)
   const isStaff = user?.role === 'staff'
@@ -33,10 +31,7 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
     if (!token) return
     setActing(true)
     try {
-      await civicApi.resolveIncident(token, incidentId, {
-        before_photo_url: beforeUrl || undefined,
-        after_photo_url: afterUrl || undefined,
-      })
+      await civicApi.resolveIncident(token, incidentId)
       refetch()
     } finally {
       setActing(false)
@@ -113,18 +108,6 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                   individual reports below instead. Use "Mark all resolved" only once every location in this incident is done.
                 </p>
                 <div className="mt-4 grid gap-2">
-                  <input
-                    value={beforeUrl}
-                    onChange={(e) => setBeforeUrl(e.target.value)}
-                    placeholder="Before photo URL (optional)"
-                    className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-4 focus:ring-primary/10"
-                  />
-                  <input
-                    value={afterUrl}
-                    onChange={(e) => setAfterUrl(e.target.value)}
-                    placeholder="After photo URL (optional)"
-                    className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-4 focus:ring-primary/10"
-                  />
                   <Action disabled={acting} onClick={resolve}>
                     {acting ? <Loader2 className="size-4 animate-spin" /> : 'Mark all resolved'}
                   </Action>
