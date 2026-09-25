@@ -13,17 +13,6 @@ export function AuthPage({ onSuccess, onBack }: { onSuccess: () => void; onBack:
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  // Portfolio/resume project — recruiters and reviewers need a way in without
-  // registering their own account. Only ever autofills, never auto-submits,
-  // so a reviewer can still see exactly what they're signing in as.
-  const DEMO_CREDENTIALS = { email: 'admin@civicai.app', password: 'ChangeMe123!' }
-  function fillDemoCredentials() {
-    setMode('login')
-    setEmail(DEMO_CREDENTIALS.email)
-    setPassword(DEMO_CREDENTIALS.password)
-    clearError()
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -82,26 +71,6 @@ export function AuthPage({ onSuccess, onBack }: { onSuccess: () => void; onBack:
               </button>
             ))}
           </div>
-
-          {mode === 'login' && (
-            <div className="mt-6 rounded-2xl border border-primary/15 bg-primary/5 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Reviewing this project?</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    This is a portfolio project — click autofill to sign in with the demo admin account and explore the full staff dashboard.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
-                >
-                  Autofill
-                </button>
-              </div>
-            </div>
-          )}
 
           <form className="mt-7 flex flex-col gap-4" onSubmit={handleSubmit}>
             {mode === 'register' && (
