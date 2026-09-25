@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # Groq
     groq_api_key: str = ""
     groq_chat_model: str = "llama-3.3-70b-versatile"
+    # Vision-capable Groq model, used only for report photo classification.
+    # Groq's vision-model lineup changes fairly often — verify this is still
+    # current at https://console.groq.com/docs/models before relying on it.
+    groq_vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     # OpenAI (optional — only used if llm_provider="openai")
     openai_api_key: str = ""
