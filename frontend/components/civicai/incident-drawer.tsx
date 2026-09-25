@@ -128,6 +128,16 @@ export function IncidentDrawer({ incidentId, onClose }: { incidentId: string; on
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={mediaUrl(r.image_url)} alt="Report evidence" className="mt-3 max-h-48 w-full rounded-xl object-cover" />
                     )}
+                    <div className="mt-3 rounded-xl bg-muted/50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI classification</p>
+                        <p className="text-xs font-medium text-muted-foreground">{Math.round(r.confidence * 100)}% confidence</p>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Category: <span className="font-medium text-foreground">{titleCase(r.category)}</span>
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{r.ai_reasoning}</p>
+                    </div>
                   </div>
                 ))}
               </div>
