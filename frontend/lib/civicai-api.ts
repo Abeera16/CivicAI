@@ -311,6 +311,10 @@ export const civicApi = {
     ),
   resolveIncident: (token: string, incidentId: string, photos: { before_photo_url?: string; after_photo_url?: string } = {}) =>
     request<UrbanIncident>(`/incidents/${incidentId}/resolve`, { method: 'POST', body: JSON.stringify(photos) }, token),
+  resolveReport: (token: string, reportId: string) =>
+    request<CivicReport>(`/reports/${reportId}/resolve`, { method: 'POST' }, token),
+  reopenReport: (token: string, reportId: string) =>
+    request<CivicReport>(`/reports/${reportId}/reopen`, { method: 'POST' }, token),
 
   // Map / OSM
   mapIncidents: () => request<MapIncident[]>('/map/incidents'),
