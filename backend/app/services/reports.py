@@ -15,8 +15,12 @@ async def create_report(
     description: str | None = None,
     category_hint: str | None = None,
     reporter_id: str | None = None,
+    image_bytes: bytes | None = None,
+    image_mime: str | None = None,
 ) -> tuple[CivicReport, UrbanIncident]:
-    classification = await classify_report(description, image_url, category_hint)
+    classification = await classify_report(
+        description, image_url, category_hint, image_bytes=image_bytes, image_mime=image_mime
+    )
 
     report = CivicReport(
         category=classification["category"],
