@@ -51,7 +51,7 @@ def _r2_client():
     )
 
 
-async def _save_uploaded_image(image: UploadFile) -> str:
+async def _save_uploaded_image(image: UploadFile) -> tuple[str, bytes, str]:
     if image.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {image.content_type}")
     ext = Path(image.filename or "upload.jpg").suffix or ".jpg"
@@ -69,12 +69,12 @@ async def _save_uploaded_image(image: UploadFile) -> str:
             Body=contents,
             ContentType=image.content_type,
         )
-        return f"{settings.r2_public_url.rstrip('/')}/reports/{filename}"
+        return f"{settings.r2_public_url.rstrip('/')}/reports/{filename}", contents, image.content_type
 
     # Fallback: local disk (dev only — wiped on every Render redeploy)
     dest = MEDIA_DIR / filename
     dest.write_bytes(contents)
-    return f"/media/reports/{filename}"
+    return f"/media/reports/{filename}", contents, image.content_type
 
 
 @router.post("/reports", response_model=ReportOut, status_code=201)
@@ -91,12 +91,18 @@ async def submit_report(
     if not image and not image_url:
         raise HTTPException(status_code=400, detail="Provide either an image upload or an image_url")
 
-    resolved_image_url = await _save_uploaded_image(image) if image else image_url
+    image_bytes: bytes | None = None
+    image_mime: str | None = None
+    if image:
+        resolved_image_url, image_bytes, image_mime = await _save_uploaded_image(image)
+    else:
+        resolved_image_url = image_url
 
     try:
         report, _incident = await create_report(
             db, lat=lat, lng=lng, image_url=resolved_image_url, description=description,
             category_hint=category, reporter_id=current_user.id,
+            image_bytes=image_bytes, image_mime=image_mime,
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Report creation failed")
