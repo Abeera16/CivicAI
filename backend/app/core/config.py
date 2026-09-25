@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     lahore_lat: float = 31.5204
     lahore_lng: float = 74.3587
 
+    # Cloudflare R2 (report photo storage). If r2_bucket_name is blank, report
+    # images fall back to local disk (backend/media) — fine for local dev,
+    # but local disk does NOT survive a Render redeploy.
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = ""
+    r2_public_url: str = ""  # e.g. https://pub-xxxx.r2.dev or your custom domain
+
 
 @lru_cache
 def get_settings() -> Settings:
