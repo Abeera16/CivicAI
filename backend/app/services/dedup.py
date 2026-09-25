@@ -1,8 +1,13 @@
 """Duplicate/incident detection & grouping — haversine distance only.
 
 Cross-category embedding similarity was removed along with ChromaDB.
-Same-category dedup (the common case) uses a 80m haversine radius.
-Cross-category dedup uses a 150m haversine radius without semantic matching.
+Dedup is same-category only, within an 80m haversine radius. A pothole and a
+waste report 20m apart are two different real-world problems for two
+different city departments — merging them into one incident just because
+they're nearby caused unrelated reports (submitted from the same test
+location) to pile into a single mega-incident, making "open any report" look
+like "open every incident." Proximity is necessary but not sufficient for two
+reports to be the same incident; category must match too.
 """
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,39 +16,30 @@ from app.models.db_models import CivicReport, UrbanIncident
 from app.utils.geo_utils import haversine_distance_m
 
 SAME_CATEGORY_RADIUS_M = 80
-CROSS_CATEGORY_RADIUS_M = 150
 SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
 async def find_or_create_incident(
     db: AsyncSession, report: CivicReport
 ) -> tuple[UrbanIncident, bool]:
-    """Attach `report` to an existing nearby open incident, or create a new one.
-
-    Matching priority:
-      1. Same category within 80m  — exact match, merged immediately.
-      2. Any category within 150m  — proximity-only merge (no embedding check).
-      3. No match                  — new incident created.
+    """Attach `report` to an existing nearby open incident of the SAME category,
+    or create a new one.
 
     Returns (incident, created_new).
     """
-    result = await db.execute(select(UrbanIncident).where(UrbanIncident.status != "resolved"))
-    open_incidents = result.scalars().all()
+    result = await db.execute(
+        select(UrbanIncident).where(
+            UrbanIncident.status != "resolved",
+            UrbanIncident.category == report.category,
+        )
+    )
+    same_category_incidents = result.scalars().all()
 
-    same_category_match: UrbanIncident | None = None
-    cross_category_match: UrbanIncident | None = None
-    cross_category_dist = float("inf")
-
-    for inc in open_incidents:
-        dist = haversine_distance_m(report.lat, report.lng, inc.lat, inc.lng)
-        if inc.category == report.category and dist <= SAME_CATEGORY_RADIUS_M:
-            same_category_match = inc
+    matched_incident: UrbanIncident | None = None
+    for inc in same_category_incidents:
+        if haversine_distance_m(report.lat, report.lng, inc.lat, inc.lng) <= SAME_CATEGORY_RADIUS_M:
+            matched_incident = inc
             break
-        if dist <= CROSS_CATEGORY_RADIUS_M and dist < cross_category_dist:
-            cross_category_match = inc
-            cross_category_dist = dist
-
-    matched_incident = same_category_match or cross_category_match
 
     if matched_incident:
         matched_incident.report_count += 1
