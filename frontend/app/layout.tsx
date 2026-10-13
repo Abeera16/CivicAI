@@ -2,6 +2,10 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
+
+
+
+
 export const metadata: Metadata = {
   title: 'CivicAI — A clearer signal for every city',
   description: 'CivicAI turns resident experience into a live operating picture for the people improving cities.',
