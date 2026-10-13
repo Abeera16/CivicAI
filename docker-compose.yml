@@ -7,6 +7,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-civicai}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civicai_pass}
       POSTGRES_DB: ${POSTGRES_DB:-civicai}
+
+
+      
     ports:
       - "5432:5432"
     volumes:
